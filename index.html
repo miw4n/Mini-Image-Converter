@@ -1,0 +1,267 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Mini Image Converter</title>
+  <style>
+    :root{font-family:system-ui,-apple-system,Segoe UI,Roboto,'Helvetica Neue',Arial;}
+    body{max-width:980px;margin:24px auto;padding:18px;background:#1a1a1a;border:1px solid #eee;border-radius:10px}
+    h1{font-size:20px;margin:0 0 12px;color:#666}
+    .row{display:flex;gap:12px;align-items:center;flex-wrap:wrap}
+    .card{background:white;padding:12px;border:1px solid #eee;border-radius:8px;box-shadow:0 6px 18px rgba(30,30,60,0.03)}
+    .controls{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:10px}
+    label{font-size:13px;color:#333}
+    input[type=file]{padding:6px}
+    input[type=number],select,input[type=range],button{width:100%;padding:8px;border-radius:6px;border:1px solid #ddd}
+    .gallery{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:10px;margin-top:12px}
+    .tile{padding:8px;border-radius:8px;border:1px dashed #eee;text-align:center;background:#fff}
+    img.preview{max-width:100%;height:120px;object-fit:contain;background:#f6f6f8;border-radius:6px}
+    .meta{font-size:12px;color:#555;margin-top:6px}
+    .btn{background:#0066ff;color:white;border:none;padding:10px;border-radius:8px;cursor:pointer}
+    small{color:#666}
+    footer{margin-top:14px;font-size:12px;color:#666}
+  </style>
+</head>
+<body>
+  <h1>Mini Image Converter</h1>
+  <script type="text/javascript" src="https://cdnjs.buymeacoffee.com/1.0.0/button.prod.min.js" data-name="bmc-button" data-slug="miw4n" data-color="#FFDD00" data-emoji="🧋"  data-font="Cookie" data-text="Buy me a bubble tea" data-outline-color="#000000" data-font-color="#000000" data-coffee-color="#ffffff" ></script>
+  <div class="card">
+    <div class="row">
+      <input id="files" type="file" accept="image/*" multiple />
+      <button id="dropArea" class="btn">Glisser-déposer ici / Put your files here</button>
+    </div>
+    <hr />
+    <div class="controls">
+      <div>
+        <label>Format de sortie / output</label>
+        <select id="outFormat">
+          <option value="image/png">PNG (.png)</option>
+          <option value="image/jpeg">JPEG (.jpg/.jpeg)</option>
+          <option value="image/webp">WebP (.webp)</option>
+          <option value="image/avif">AVIF (.avif)</option>
+          <option value="image/bmp">BMP (.bmp)</option>
+        </select>
+      </div>
+      <div>
+        <label>Qualité / Quality (JPEG/WebP/AVIF) <small id="qLabel">0.92</small></label>
+        <input id="quality" type="range" min="0.1" max="1" step="0.01" value="0.92">
+      </div>
+      <div>
+        <label>Largeur / width (px)</label>
+        <input id="width" type="number" placeholder="Laisser vide pour garder l'original">
+      </div>
+      <div>
+        <label>Hauteur / height (px)</label>
+        <input id="height" type="number" placeholder="Laisser vide pour garder l'original">
+      </div>
+      <div>
+        <label><input id="keepAspect" type="checkbox" checked> ratio</label>
+      </div>
+      <div>
+        <label>Présets </label>
+        <select id="preset">
+          <option value="">— Aucun —</option>
+          <option value="1920">HD large (1920)</option>
+          <option value="1280">Web (1280)</option>
+          <option value="1024">Tablette (1024)</option>
+          <option value="800">Mobile (800)</option>
+          <option value="400">Mini (400)</option>
+        </select>
+      </div>
+    </div>
+    <div style="margin-top:12px" class="row">
+      <button id="convert" class="btn">Convert</button>
+      <button id="downloadZip" class="btn" style="background:#28a745">ZIP</button>
+      <button id="clear" style="background:#eee;color:#222;border:1px solid #ddd">Effacer / Clear</button>
+    </div>
+    <small>Cet outil ne conserve pas vos images en ligne. / This tool does not store your images online.</small>
+  </div>
+
+  <div id="out" class="gallery"></div>
+
+  <footer>PNG, JPEG, WebP, AVIF, BMP. Exports ZIP.</footer>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+<script>
+const filesEl=document.getElementById('files');
+const dropBtn=document.getElementById('dropArea');
+const outEl=document.getElementById('out');
+const convertBtn=document.getElementById('convert');
+const clearBtn=document.getElementById('clear');
+const zipBtn=document.getElementById('downloadZip');
+const outFormatEl=document.getElementById('outFormat');
+const qualityEl=document.getElementById('quality');
+const qLabel=document.getElementById('qLabel');
+const widthEl=document.getElementById('width');
+const heightEl=document.getElementById('height');
+const keepAspectEl=document.getElementById('keepAspect');
+let convertedFiles=[];
+
+qualityEl.addEventListener('input',()=>qLabel.textContent=qualityEl.value);
+['dragenter','dragover'].forEach(e=>dropBtn.addEventListener(e,ev=>{ev.preventDefault();dropBtn.style.opacity=0.8;}));
+['dragleave','drop'].forEach(e=>dropBtn.addEventListener(e,ev=>{ev.preventDefault();dropBtn.style.opacity=1;}));
+dropBtn.addEventListener('drop',async ev=>{const dt=ev.dataTransfer;if(dt&&dt.files){filesEl.files=dt.files;await handleFiles(dt.files);}});
+filesEl.addEventListener('change',async ()=>{if(filesEl.files.length) await handleFiles(filesEl.files);});
+clearBtn.addEventListener('click',()=>{outEl.innerHTML='';filesEl.value='';convertedFiles=[];});
+
+convertBtn.addEventListener('click',async ()=>{
+  if(!filesEl.files.length){alert('Choisis au moins un fichier.');return;}
+  outEl.innerHTML='';
+  convertedFiles=[];
+  for(const file of filesEl.files) await processFile(file);
+});
+
+zipBtn.addEventListener('click',async ()=>{
+  if(!filesEl.files.length){alert('Aucun fichier sélectionné.'); return;}
+
+  // Si rien n'a été converti, convertir tous les fichiers avant le ZIP
+  if(convertedFiles.length===0){
+    outEl.innerHTML='';
+    convertedFiles=[];
+    for(const file of filesEl.files) await processFile(file);
+  }
+
+  const zip=new JSZip();
+  convertedFiles.forEach(f=>zip.file(f.name,f.blob));
+  const blob=await zip.generateAsync({type:'blob'});
+  const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download='images_converties.zip'; a.click();
+});
+
+ 
+
+async function handleFiles(fileList){
+  // show previews
+  outEl.innerHTML='';
+  for(const file of fileList){
+    const url = URL.createObjectURL(file);
+    const tile = document.createElement('div'); tile.className='tile';
+    const img = document.createElement('img'); img.className='preview'; img.src = url;
+    const meta = document.createElement('div'); meta.className='meta'; meta.textContent = file.name + ' — ' + Math.round(file.size/1024) + ' KB';
+    tile.appendChild(img); tile.appendChild(meta); outEl.appendChild(tile);
+  }
+}
+
+async function processFile(file){
+  const outMime = outFormatEl.value;
+  const quality = parseFloat(qualityEl.value);
+
+  const bitmap = await createImageBitmap(file);
+
+  let tw = parseInt(widthEl.value) || null;
+  let th = parseInt(heightEl.value) || null;
+  const keepAspect = keepAspectEl.checked;
+  if(tw && !th && keepAspect){ th = Math.round(tw * bitmap.height / bitmap.width); }
+  if(th && !tw && keepAspect){ tw = Math.round(th * bitmap.width / bitmap.height); }
+  if(!tw && !th){ tw = bitmap.width; th = bitmap.height; }
+
+  const canvas = document.createElement('canvas');
+  canvas.width = tw; canvas.height = th;
+  const ctx = canvas.getContext('2d');
+  ctx.imageSmoothingEnabled = true;
+  ctx.imageSmoothingQuality = 'high';
+  ctx.drawImage(bitmap, 0, 0, bitmap.width, bitmap.height, 0, 0, tw, th);
+
+  let blob;
+  if(outMime === 'image/bmp'){
+    blob = canvasToBMPBlob(canvas);
+  } else {
+    blob = await new Promise(resolve => canvas.toBlob(resolve, outMime, quality));
+    if(!blob) blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/png'));
+  }
+
+  const outExt = mimeToExt(outMime);
+  const name = stripExt(file.name) + '_conv' + outExt;
+
+  // ✅ Ajouter cette ligne :
+  convertedFiles.push({ name, blob });
+
+  // UI preview
+  const tile = document.createElement('div'); tile.className='tile';
+  const img = document.createElement('img'); img.className='preview';
+  img.src = URL.createObjectURL(blob);
+  const meta = document.createElement('div'); meta.className='meta';
+  meta.innerHTML = `<div>${name} — ${Math.round(blob.size/1024)} KB</div>`;
+  const dl = document.createElement('a');
+  dl.className='btn'; dl.textContent='Télécharger';
+  dl.href = URL.createObjectURL(blob);
+  dl.download = name;
+  dl.style.display='inline-block'; dl.style.marginTop='8px';
+  tile.appendChild(img); tile.appendChild(meta); tile.appendChild(dl);
+  outEl.appendChild(tile);
+}
+
+
+function mimeToExt(m){
+  if(m==='image/jpeg') return '.jpg';
+  if(m==='image/png') return '.png';
+  if(m==='image/webp') return '.webp';
+  if(m==='image/avif') return '.avif';
+  if(m==='image/bmp') return '.bmp';
+  return '.img';
+}
+function stripExt(name){
+  return name.replace(/\.[^/.]+$/, "");
+}
+
+// BMP encoder (24-bit, no compression)
+function canvasToBMPBlob(canvas){
+  const w = canvas.width, h = canvas.height;
+  const ctx = canvas.getContext('2d');
+  const imgd = ctx.getImageData(0,0,w,h);
+  const pixels = imgd.data;
+
+  const rowSize = Math.floor((24 * w + 31) / 32) * 4; // bytes per row (padded to 4 bytes)
+  const pixelDataSize = rowSize * h;
+  const headerSize = 54;
+  const fileSize = headerSize + pixelDataSize;
+
+  const buffer = new ArrayBuffer(fileSize);
+  const view = new DataView(buffer);
+  let offset = 0;
+
+  // BITMAPFILEHEADER
+  view.setUint8(offset, 0x42); offset++; // 'B'
+  view.setUint8(offset, 0x4D); offset++; // 'M'
+  view.setUint32(offset, fileSize, true); offset += 4; // file size
+  view.setUint16(offset, 0, true); offset += 2; // reserved
+  view.setUint16(offset, 0, true); offset += 2; // reserved
+  view.setUint32(offset, headerSize, true); offset += 4; // offset to pixel data
+
+  // BITMAPINFOHEADER (40 bytes)
+  view.setUint32(offset, 40, true); offset += 4; // header size
+  view.setInt32(offset, w, true); offset += 4; // width
+  view.setInt32(offset, h, true); offset += 4; // height
+  view.setUint16(offset, 1, true); offset += 2; // planes
+  view.setUint16(offset, 24, true); offset += 2; // bits per pixel
+  view.setUint32(offset, 0, true); offset += 4; // compression (0 = BI_RGB)
+  view.setUint32(offset, pixelDataSize, true); offset += 4; // image size
+  view.setInt32(offset, 2835, true); offset += 4; // X pixels per meter (72 DPI ~ 2835)
+  view.setInt32(offset, 2835, true); offset += 4; // Y pixels per meter
+  view.setUint32(offset, 0, true); offset += 4; // colors used
+  view.setUint32(offset, 0, true); offset += 4; // important colors
+
+  // pixel data: BMP stores rows bottom-to-top, each pixel in B G R order, rows padded to 4 bytes
+  const pxOffset = headerSize;
+  let p = pxOffset;
+  const rowPad = rowSize - w * 3;
+  for(let y = h - 1; y >= 0; y--){
+    for(let x = 0; x < w; x++){
+      const i = (y * w + x) * 4;
+      const r = pixels[i];
+      const g = pixels[i+1];
+      const b = pixels[i+2];
+      view.setUint8(p++, b);
+      view.setUint8(p++, g);
+      view.setUint8(p++, r);
+    }
+    // padding
+    for(let k=0;k<rowPad;k++) view.setUint8(p++,0);
+  }
+
+  return new Blob([buffer], {type: 'image/bmp'});
+}
+
+</script>
+</body>
+</html>
