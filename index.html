@@ -96,6 +96,39 @@
 
     .meta { font-size: 11px; color: #666; margin: 8px 0; }
     .filter-group { display: flex; gap: 10px; align-items: center; grid-column: span 2; }
+	
+		.help-tip {
+	  display: inline-block;
+	  width: 16px;
+	  height: 16px;
+	  background: #666;
+	  color: white;
+	  border-radius: 50%;
+	  font-size: 11px;
+	  line-height: 16px;
+	  text-align: center;
+	  cursor: help;
+	  margin-left: 5px;
+	  position: relative;
+	}
+
+	.help-tip:hover::after {
+	  content: attr(data-tip);
+	  position: absolute;
+	  bottom: 20px;
+	  left: 50%;
+	  transform: translateX(-50%);
+	  background: #333;
+	  color: #fff;
+	  padding: 8px;
+	  border-radius: 4px;
+	  font-size: 11px;
+	  width: 180px;
+	  z-index: 100;
+	  box-shadow: 0 5px 15px rgba(0,0,0,0.3);
+	  font-weight: normal;
+	}
+
   </style>
 </head>
 <body>
@@ -120,10 +153,14 @@
         </select>
       </div>
 
-      <div class="control-group">
-        <label>Qualité: <span id="qLabel">0.92</span></label>
-        <input id="quality" type="range" min="0.1" max="1" step="0.01" value="0.92">
-      </div>
+<div class="control-group">
+  <label>
+    Qualité 
+    <span class="help-tip" data-tip="Gère la compression pour JPEG, WebP et AVIF. N'affecte pas le PNG. 1.00 = Qualité max / Fichier lourd.">?</span>
+    : <span id="qLabel">0.92</span>
+  </label>
+  <input id="quality" type="range" min="0.1" max="1" step="0.01" value="0.92">
+</div>
 
       <div class="control-group">
         <label>Largeur (px)</label>
@@ -156,6 +193,24 @@
         <label><input id="chkInvert" type="checkbox"> Inverser les couleurs</label>
       </div>
     </div>
+	
+<div class="control-group">
+  <label>
+    Pixelisation  
+    <span class="help-tip" data-tip="(Original : 0) Augmentez pour supprimer les petits traits parasites et simplifier les formes.">?</span>
+    : <span id="pLabel">0</span>
+  </label>
+  <input id="pixelRange" type="range" min="0" max="100" step="1" value="0">
+</div>
+
+<div class="control-group">
+  <label>
+    Posterisation   
+    <span class="help-tip" data-tip="(Original : Max) Réduisez pour transformer les dégradés en zones de couleurs unies (style BD).">?</span>
+    : <span id="posterLabel">Max</span>
+  </label>
+  <input id="posterRange" type="range" min="2" max="20" step="1" value="20">
+</div>
 
     <div class="row-actions">
       <button id="convert" class="btn btn-main">CONVERTIR</button>
@@ -173,7 +228,11 @@
     const outFormatEl=document.getElementById('outFormat'), qualityEl=document.getElementById('quality'), qLabel=document.getElementById('qLabel');
     const widthEl=document.getElementById('width'), heightEl=document.getElementById('height'), keepAspectEl=document.getElementById('keepAspect'), presetEl=document.getElementById('preset');
     const chkGray=document.getElementById('chkGray'), chkInvert=document.getElementById('chkInvert');
-    
+    const pixelRange = document.getElementById('pixelRange'), pLabel = document.getElementById('pLabel');
+	const posterRange = document.getElementById('posterRange'), posterLabel = document.getElementById('posterLabel');
+
+pixelRange.oninput = () => pLabel.textContent = pixelRange.value;
+posterRange.oninput = () => posterLabel.textContent = posterRange.value == 20 ? "Max" : posterRange.value;
     let convertedFiles=[];
 
     // Sync UI
@@ -204,38 +263,75 @@
       for(const file of filesEl.files) await processFile(file);
     };
 
-    async function processFile(file){
-      const bitmap = await createImageBitmap(file);
-      let tw = parseInt(widthEl.value) || null, th = parseInt(heightEl.value) || null;
-      
-      if(tw && !th && keepAspectEl.checked) th = Math.round(tw * bitmap.height / bitmap.width);
-      if(th && !tw && keepAspectEl.checked) tw = Math.round(th * bitmap.width / bitmap.height);
-      if(!tw && !th) { tw = bitmap.width; th = bitmap.height; }
+ async function processFile(file) {
+  const bitmap = await createImageBitmap(file);
+  let tw = parseInt(widthEl.value) || null,
+    th = parseInt(heightEl.value) || null;
 
-      const canvas = document.createElement('canvas');
-      canvas.width = tw; canvas.height = th;
-      const ctx = canvas.getContext('2d');
+  if (tw && !th && keepAspectEl.checked) th = Math.round(tw * bitmap.height / bitmap.width);
+  if (th && !tw && keepAspectEl.checked) tw = Math.round(th * bitmap.width / bitmap.height);
+  if (!tw && !th) { tw = bitmap.width; th = bitmap.height; }
 
-      // Application des filtres
-      let f = [];
-      if(chkGray.checked) f.push('grayscale(100%)');
-      if(chkInvert.checked) f.push('invert(100%)');
-      ctx.filter = f.length ? f.join(' ') : 'none';
+  const canvas = document.createElement('canvas');
+  canvas.width = tw;
+  canvas.height = th;
+  const ctx = canvas.getContext('2d');
 
-      ctx.drawImage(bitmap, 0, 0, tw, th);
+  // --- 1. APPLIQUER LES FILTRES NATIFS (Gris / Invert) ---
+  let f = [];
+  if (chkGray.checked) f.push('grayscale(100%)');
+  if (chkInvert.checked) f.push('invert(100%)');
+  ctx.filter = f.length ? f.join(' ') : 'none';
 
-      const outMime = outFormatEl.value;
-      let blob = (outMime === 'image/bmp') ? canvasToBMPBlob(canvas) : await new Promise(r => canvas.toBlob(r, outMime, parseFloat(qualityEl.value)));
-      
-      const name = file.name.replace(/\.[^/.]+$/, "") + '_conv' + mimeToExt(outMime);
-      convertedFiles.push({ name, blob });
+  // --- 2. DESSINER L'IMAGE ORIGINALE (Étape indispensable !) ---
+  ctx.drawImage(bitmap, 0, 0, tw, th);
+  // On réinitialise le filtre pour ne pas qu'il s'applique deux fois aux étapes suivantes
+  ctx.filter = 'none';
 
-      const url = URL.createObjectURL(blob);
-      const tile = document.createElement('div'); tile.className='tile';
-      tile.innerHTML = `<img src="${url}" class="preview"><div class="meta">${name}<br>${Math.round(blob.size/1024)} KB</div>
-                        <a href="${url}" download="${name}" class="btn btn-main" style="display:block;text-decoration:none;font-size:11px">Télécharger</a>`;
-      outEl.appendChild(tile);
+  // --- 3. PIXELISATION ---
+  const pixelVal = parseInt(pixelRange.value);
+  if (pixelVal > 0) {
+    const scale = Math.max(0.01, 1 - (pixelVal / 105));
+    const tempCanvas = document.createElement('canvas');
+    tempCanvas.width = Math.max(1, tw * scale);
+    tempCanvas.height = Math.max(1, th * scale);
+    const tCtx = tempCanvas.getContext('2d');
+
+    // On puise dans le canvas principal (qui a déjà le gris/invert)
+    tCtx.drawImage(canvas, 0, 0, tempCanvas.width, tempCanvas.height);
+
+    ctx.clearRect(0, 0, tw, th);
+    ctx.imageSmoothingEnabled = false;
+    ctx.drawImage(tempCanvas, 0, 0, tempCanvas.width, tempCanvas.height, 0, 0, tw, th);
+  }
+
+  // --- 4. POSTERISATION ---
+  const levels = parseInt(posterRange.value);
+  if (levels < 20) {
+    const imgData = ctx.getImageData(0, 0, tw, th);
+    const data = imgData.data;
+    for (let i = 0; i < data.length; i += 4) {
+      data[i] = Math.floor(data[i] / (256 / levels)) * (256 / levels);
+      data[i + 1] = Math.floor(data[i + 1] / (256 / levels)) * (256 / levels);
+      data[i + 2] = Math.floor(data[i + 2] / (256 / levels)) * (256 / levels);
     }
+    ctx.putImageData(imgData, 0, 0);
+  }
+
+  // --- 5. EXPORT ET AFFICHAGE ---
+  const outMime = outFormatEl.value;
+  let blob = (outMime === 'image/bmp') ? canvasToBMPBlob(canvas) : await new Promise(r => canvas.toBlob(r, outMime, parseFloat(qualityEl.value)));
+
+  const name = file.name.replace(/\.[^/.]+$/, "") + '_conv' + mimeToExt(outMime);
+  convertedFiles.push({ name, blob });
+
+  const url = URL.createObjectURL(blob);
+  const tile = document.createElement('div');
+  tile.className = 'tile';
+  tile.innerHTML = `<img src="${url}" class="preview"><div class="meta">${name}<br>${Math.round(blob.size/1024)} KB</div>
+                    <a href="${url}" download="${name}" class="btn btn-main" style="display:block;text-decoration:none;font-size:11px">Télécharger</a>`;
+  outEl.appendChild(tile);
+}
 
     function mimeToExt(m){ return { 'image/jpeg':'.jpg','image/png':'.png','image/webp':'.webp','image/avif':'.avif','image/bmp':'.bmp' }[m]; }
 
