@@ -53,7 +53,7 @@
     .control-group { display: flex; flex-direction: column; gap: 5px; }
     label { font-size: 13px; font-weight: 600; color: #555; }
     
-    input[type=number], select, input[type=range], .btn {
+    input[type=number], select, input[type=range], input[type=color], .btn {
       padding: 8px;
       border-radius: 6px;
       border: 1px solid #ddd;
@@ -86,55 +86,69 @@
       text-align: center;
     }
 
+    /* Motif damier pour bien voir la transparence */
+    .preview-container {
+      position: relative;
+      background-image: linear-gradient(45deg, #ccc 25%, transparent 25%), 
+                        linear-gradient(-45deg, #ccc 25%, transparent 25%), 
+                        linear-gradient(45deg, transparent 75%, #ccc 75%), 
+                        linear-gradient(-45deg, transparent 75%, #ccc 75%);
+      background-size: 16px 16px;
+      background-position: 0 0, 0 8px, 8px -8px, -8px 0px;
+      border-radius: 4px;
+      overflow: hidden;
+      margin-bottom: 8px;
+    }
+
     img.preview {
       max-width: 100%;
       height: 120px;
       object-fit: contain;
-      background: #eee;
-      border-radius: 4px;
+      display: block;
+      margin: 0 auto;
     }
 
     .meta { font-size: 11px; color: #666; margin: 8px 0; }
     .filter-group { display: flex; gap: 10px; align-items: center; grid-column: span 2; }
 	
-		.help-tip {
-	  display: inline-block;
-	  width: 16px;
-	  height: 16px;
-	  background: #666;
-	  color: white;
-	  border-radius: 50%;
-	  font-size: 11px;
-	  line-height: 16px;
-	  text-align: center;
-	  cursor: help;
-	  margin-left: 5px;
-	  position: relative;
-	}
+    .help-tip {
+      display: inline-block;
+      width: 16px;
+      height: 16px;
+      background: #666;
+      color: white;
+      border-radius: 50%;
+      font-size: 11px;
+      line-height: 16px;
+      text-align: center;
+      cursor: help;
+      margin-left: 5px;
+      position: relative;
+    }
 
-	.help-tip:hover::after {
-	  content: attr(data-tip);
-	  position: absolute;
-	  bottom: 20px;
-	  left: 50%;
-	  transform: translateX(-50%);
-	  background: #333;
-	  color: #fff;
-	  padding: 8px;
-	  border-radius: 4px;
-	  font-size: 11px;
-	  width: 180px;
-	  z-index: 100;
-	  box-shadow: 0 5px 15px rgba(0,0,0,0.3);
-	  font-weight: normal;
-	}
-
+    .help-tip:hover::after {
+      content: attr(data-tip);
+      position: absolute;
+      bottom: 20px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: #333;
+      color: #fff;
+      padding: 8px;
+      border-radius: 4px;
+      font-size: 11px;
+      width: 180px;
+      z-index: 100;
+      box-shadow: 0 5px 15px rgba(0,0,0,0.3);
+      font-weight: normal;
+    }
   </style>
 </head>
 <body>
 
   <h1>Mini Image Converter</h1>
-<script type="text/javascript" src="https://cdnjs.buymeacoffee.com/1.0.0/button.prod.min.js" data-name="bmc-button" data-slug="miw4n" data-color="#ffffff" data-emoji="🧋" data-font="Cookie" data-text="Buy me a bubble tea" data-outline-color="#000000" data-font-color="#000000" data-coffee-color="#FFDD00" ></script>
+  <script type="text/javascript" src="https://cdnjs.buymeacoffee.com/1.0.0/button.prod.min.js" data-name="bmc-button" data-slug="miw4n" data-color="#ffffff" data-emoji="🧋" data-font="Cookie" data-text="Buy me a bubble tea" data-outline-color="#000000" data-font-color="#000000" data-coffee-color="#FFDD00" ></script>
+  
   <div class="card">
     <div class="drop-zone" id="dropArea">
       <strong>Glisser-déposer ou cliquer ici</strong>
@@ -145,7 +159,7 @@
       <div class="control-group">
         <label>Format de sortie</label>
         <select id="outFormat">
-          <option value="image/png">PNG (.png)</option>
+          <option value="image/png">PNG (.png - Supporte transparence)</option>
           <option value="image/jpeg">JPEG (.jpg)</option>
           <option value="image/webp">WebP (.webp)</option>
           <option value="image/avif">AVIF (.avif)</option>
@@ -153,14 +167,14 @@
         </select>
       </div>
 
-<div class="control-group">
-  <label>
-    Qualité 
-    <span class="help-tip" data-tip="Gère la compression pour JPEG, WebP et AVIF. N'affecte pas le PNG. 1.00 = Qualité max / Fichier lourd.">?</span>
-    : <span id="qLabel">0.92</span>
-  </label>
-  <input id="quality" type="range" min="0.1" max="1" step="0.01" value="0.92">
-</div>
+      <div class="control-group">
+        <label>
+          Qualité 
+          <span class="help-tip" data-tip="Gère la compression pour JPEG, WebP et AVIF. N'affecte pas le PNG.">?</span>
+          : <span id="qLabel">0.92</span>
+        </label>
+        <input id="quality" type="range" min="0.1" max="1" step="0.01" value="0.92">
+      </div>
 
       <div class="control-group">
         <label>Largeur (px)</label>
@@ -194,23 +208,39 @@
       </div>
     </div>
 	
-<div class="control-group">
-  <label>
-    Pixelisation  
-    <span class="help-tip" data-tip="(Original : 0) Augmentez pour supprimer les petits traits parasites et simplifier les formes.">?</span>
-    : <span id="pLabel">0</span>
-  </label>
-  <input id="pixelRange" type="range" min="0" max="100" step="1" value="0" autocomplete="off">
-</div>
+    <div class="control-group">
+      <label>
+        Pixelisation  
+        <span class="help-tip" data-tip="Augmentez pour simplifier les formes.">?</span>
+        : <span id="pLabel">0</span>
+      </label>
+      <input id="pixelRange" type="range" min="0" max="100" step="1" value="0" autocomplete="off">
+    </div>
 
-<div class="control-group">
-  <label>
-    Posterisation   
-    <span class="help-tip" data-tip="(Original : Max) Réduisez pour transformer les dégradés en zones de couleurs unies (style BD).">?</span>
-    : <span id="posterLabel">Max</span>
-  </label>
-  <input id="posterRange" type="range" min="2" max="20" step="1" value="20" autocomplete="off">
-</div>
+    <div class="control-group">
+      <label>
+        Posterisation   
+        <span class="help-tip" data-tip="Réduisez pour transformer les dégradés en zones unies.">?</span>
+        : <span id="posterLabel">Max</span>
+      </label>
+      <input id="posterRange" type="range" min="2" max="20" step="1" value="20" autocomplete="off">
+    </div>
+
+    <!-- NOUVELLES OPTIONS DE FOND TRANSPARENT -->
+    <hr style="border:0; border-top:1px solid #eee; margin: 15px 0;" />
+    <div class="controls" style="margin-bottom:0;">
+      <div class="control-group" style="grid-column: span 2;">
+        <label><input id="chkTransparent" type="checkbox"> Activer le fond transparent (Idéal PNG)</label>
+      </div>
+      <div class="control-group">
+        <label>Couleur à effacer</label>
+        <input id="transColor" type="color" value="#ffffff">
+      </div>
+      <div class="control-group">
+        <label>Tolérance (Force) : <span id="tLabel">30</span></label>
+        <input id="transTolerance" type="range" min="0" max="150" step="1" value="30">
+      </div>
+    </div>
 
     <div class="row-actions">
       <button id="convert" class="btn btn-main">CONVERTIR</button>
@@ -223,147 +253,176 @@
 
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
   <script>
-    const filesEl=document.getElementById('files'), dropBtn=document.getElementById('dropArea'), outEl=document.getElementById('out');
-    const convertBtn=document.getElementById('convert'), clearBtn=document.getElementById('clear'), zipBtn=document.getElementById('downloadZip');
-    const outFormatEl=document.getElementById('outFormat'), qualityEl=document.getElementById('quality'), qLabel=document.getElementById('qLabel');
-    const widthEl=document.getElementById('width'), heightEl=document.getElementById('height'), keepAspectEl=document.getElementById('keepAspect'), presetEl=document.getElementById('preset');
-    const chkGray=document.getElementById('chkGray'), chkInvert=document.getElementById('chkInvert');
+    const filesEl = document.getElementById('files'), dropBtn = document.getElementById('dropArea'), outEl = document.getElementById('out');
+    const convertBtn = document.getElementById('convert'), clearBtn = document.getElementById('clear'), zipBtn = document.getElementById('downloadZip');
+    const outFormatEl = document.getElementById('outFormat'), qualityEl = document.getElementById('quality'), qLabel = document.getElementById('qLabel');
+    const widthEl = document.getElementById('width'), heightEl = document.getElementById('height'), keepAspectEl = document.getElementById('keepAspect'), presetEl = document.getElementById('preset');
+    const chkGray = document.getElementById('chkGray'), chkInvert = document.getElementById('chkInvert');
     const pixelRange = document.getElementById('pixelRange'), pLabel = document.getElementById('pLabel');
-	const posterRange = document.getElementById('posterRange'), posterLabel = document.getElementById('posterLabel');
+    const posterRange = document.getElementById('posterRange'), posterLabel = document.getElementById('posterLabel');
+    
+    // Éléments transparence
+    const chkTransparent = document.getElementById('chkTransparent');
+    const transColorEl = document.getElementById('transColor');
+    const transTolerance = document.getElementById('transTolerance');
+    const tLabel = document.getElementById('tLabel');
 
-pixelRange.oninput = () => pLabel.textContent = pixelRange.value;
-posterRange.oninput = () => posterLabel.textContent = posterRange.value == 20 ? "Max" : posterRange.value;
-    let convertedFiles=[];
+    pixelRange.oninput = () => pLabel.textContent = pixelRange.value;
+    posterRange.oninput = () => posterLabel.textContent = posterRange.value == 20 ? "Max" : posterRange.value;
+    transTolerance.oninput = () => tLabel.textContent = transTolerance.value;
 
-    // Sync UI
-    qualityEl.oninput=()=>qLabel.textContent=qualityEl.value;
-    presetEl.onchange=()=>{ if(presetEl.value) { widthEl.value=presetEl.value; heightEl.value=''; } };
-    dropBtn.onclick=()=>filesEl.click();
+    let convertedFiles = [];
 
-    // Drag & Drop
-    ['dragenter','dragover'].forEach(e=>dropBtn.addEventListener(e,ev=>{ev.preventDefault();dropBtn.style.background='#eef';}));
-    ['dragleave','drop'].forEach(e=>dropBtn.addEventListener(e,ev=>{ev.preventDefault();dropBtn.style.background='#f9f9f9';}));
-    dropBtn.addEventListener('drop',async ev=>{ if(ev.dataTransfer?.files){ filesEl.files=ev.dataTransfer.files; handleFiles(filesEl.files); }});
-    filesEl.onchange=()=>handleFiles(filesEl.files);
+    qualityEl.oninput = () => qLabel.textContent = qualityEl.value;
+    presetEl.onchange = () => { if(presetEl.value) { widthEl.value = presetEl.value; heightEl.value = ''; } };
+    dropBtn.onclick = () => filesEl.click();
 
-    clearBtn.onclick=()=>{ outEl.innerHTML=''; filesEl.value=''; convertedFiles=[]; };
+    ['dragenter','dragover'].forEach(e => dropBtn.addEventListener(e, ev => { ev.preventDefault(); dropBtn.style.background='#eef'; }));
+    ['dragleave','drop'].forEach(e => dropBtn.addEventListener(e, ev => { ev.preventDefault(); dropBtn.style.background='#f9f9f9'; }));
+    dropBtn.addEventListener('drop', async ev => { if(ev.dataTransfer?.files){ filesEl.files = ev.dataTransfer.files; handleFiles(filesEl.files); }});
+    filesEl.onchange = () => handleFiles(filesEl.files);
+
+    clearBtn.onclick = () => { outEl.innerHTML = ''; filesEl.value = ''; convertedFiles = []; };
 
     async function handleFiles(fileList){
-      outEl.innerHTML='';
+      outEl.innerHTML = '';
       for(const file of fileList){
-        const tile=document.createElement('div'); tile.className='tile';
-        tile.innerHTML=`<img src="${URL.createObjectURL(file)}" class="preview"><div class="meta">${file.name}</div>`;
+        const tile = document.createElement('div'); tile.className = 'tile';
+        tile.innerHTML = `<div class="preview-container"><img src="${URL.createObjectURL(file)}" class="preview"></div><div class="meta">${file.name}</div>`;
         outEl.appendChild(tile);
       }
     }
 
-    convertBtn.onclick=async()=>{
+    convertBtn.onclick = async () => {
       if(!filesEl.files.length) return alert('Sélectionnez des images.');
-      outEl.innerHTML=''; convertedFiles=[];
+      outEl.innerHTML = ''; convertedFiles = [];
       for(const file of filesEl.files) await processFile(file);
     };
 
- async function processFile(file) {
-  const bitmap = await createImageBitmap(file);
-  let tw = parseInt(widthEl.value) || null,
-    th = parseInt(heightEl.value) || null;
+    async function processFile(file) {
+      const bitmap = await createImageBitmap(file);
+      let tw = parseInt(widthEl.value) || null,
+        th = parseInt(heightEl.value) || null;
 
-  if (tw && !th && keepAspectEl.checked) th = Math.round(tw * bitmap.height / bitmap.width);
-  if (th && !tw && keepAspectEl.checked) tw = Math.round(th * bitmap.width / bitmap.height);
-  if (!tw && !th) { tw = bitmap.width; th = bitmap.height; }
+      if (tw && !th && keepAspectEl.checked) th = Math.round(tw * bitmap.height / bitmap.width);
+      if (th && !tw && keepAspectEl.checked) tw = Math.round(th * bitmap.width / bitmap.height);
+      if (!tw && !th) { tw = bitmap.width; th = bitmap.height; }
 
-  const canvas = document.createElement('canvas');
-  canvas.width = tw;
-  canvas.height = th;
-  const ctx = canvas.getContext('2d');
+      const canvas = document.createElement('canvas');
+      canvas.width = tw;
+      canvas.height = th;
+      const ctx = canvas.getContext('2d');
 
-  // --- 1. APPLIQUER LES FILTRES NATIFS (Gris / Invert) ---
-  let f = [];
-  if (chkGray.checked) f.push('grayscale(100%)');
-  if (chkInvert.checked) f.push('invert(100%)');
-  ctx.filter = f.length ? f.join(' ') : 'none';
+      // --- 1. APPLIQUER LES FILTRES NATIFS (Gris / Invert) ---
+      let f = [];
+      if (chkGray.checked) f.push('grayscale(100%)');
+      if (chkInvert.checked) f.push('invert(100%)');
+      ctx.filter = f.length ? f.join(' ') : 'none';
 
-  // --- 2. DESSINER L'IMAGE ORIGINALE (Étape indispensable !) ---
-  ctx.drawImage(bitmap, 0, 0, tw, th);
-  // On réinitialise le filtre pour ne pas qu'il s'applique deux fois aux étapes suivantes
-  ctx.filter = 'none';
+      // --- 2. DESSINER L'IMAGE ---
+      ctx.drawImage(bitmap, 0, 0, tw, th);
+      ctx.filter = 'none';
 
-  // --- 3. PIXELISATION ---
-  const pixelVal = parseInt(pixelRange.value);
-  if (pixelVal > 0) {
-    const scale = Math.max(0.01, 1 - (pixelVal / 105));
-    const tempCanvas = document.createElement('canvas');
-    tempCanvas.width = Math.max(1, tw * scale);
-    tempCanvas.height = Math.max(1, th * scale);
-    const tCtx = tempCanvas.getContext('2d');
+      // --- 3. PIXELISATION ---
+      const pixelVal = parseInt(pixelRange.value);
+      if (pixelVal > 0) {
+        const scale = Math.max(0.01, 1 - (pixelVal / 105));
+        const tempCanvas = document.createElement('canvas');
+        tempCanvas.width = Math.max(1, tw * scale);
+        tempCanvas.height = Math.max(1, th * scale);
+        const tCtx = tempCanvas.getContext('2d');
+        tCtx.drawImage(canvas, 0, 0, tempCanvas.width, tempCanvas.height);
 
-    // On puise dans le canvas principal (qui a déjà le gris/invert)
-    tCtx.drawImage(canvas, 0, 0, tempCanvas.width, tempCanvas.height);
+        ctx.clearRect(0, 0, tw, th);
+        ctx.imageSmoothingEnabled = false;
+        ctx.drawImage(tempCanvas, 0, 0, tempCanvas.width, tempCanvas.height, 0, 0, tw, th);
+      }
 
-    ctx.clearRect(0, 0, tw, th);
-    ctx.imageSmoothingEnabled = false;
-    ctx.drawImage(tempCanvas, 0, 0, tempCanvas.width, tempCanvas.height, 0, 0, tw, th);
-  }
+      // --- 4. POSTERISATION ---
+      const levels = parseInt(posterRange.value);
+      if (levels < 20) {
+        const imgData = ctx.getImageData(0, 0, tw, th);
+        const data = imgData.data;
+        for (let i = 0; i < data.length; i += 4) {
+          data[i] = Math.floor(data[i] / (256 / levels)) * (256 / levels);
+          data[i+1] = Math.floor(data[i+1] / (256 / levels)) * (256 / levels);
+          data[i+2] = Math.floor(data[i+2] / (256 / levels)) * (256 / levels);
+        }
+        ctx.putImageData(imgData, 0, 0);
+      }
 
-  // --- 4. POSTERISATION ---
-  const levels = parseInt(posterRange.value);
-  if (levels < 20) {
-    const imgData = ctx.getImageData(0, 0, tw, th);
-    const data = imgData.data;
-    for (let i = 0; i < data.length; i += 4) {
-      data[i] = Math.floor(data[i] / (256 / levels)) * (256 / levels);
-      data[i + 1] = Math.floor(data[i + 1] / (256 / levels)) * (256 / levels);
-      data[i + 2] = Math.floor(data[i + 2] / (256 / levels)) * (256 / levels);
+      // --- 5. FOND TRANSPARENT (CHROMA KEY / COLOR REMOVAL) ---
+      if (chkTransparent.checked) {
+        const hex = transColorEl.value;
+        const targetR = parseInt(hex.substr(1,2), 16);
+        const targetG = parseInt(hex.substr(3,2), 16);
+        const targetB = parseInt(hex.substr(5,2), 16);
+        const tolerance = parseInt(transTolerance.value);
+
+        const imgData = ctx.getImageData(0, 0, tw, th);
+        const data = imgData.data;
+
+        for (let i = 0; i < data.length; i += 4) {
+          const r = data[i];
+          const g = data[i+1];
+          const b = data[i+2];
+
+          // Calcul de la distance colorimétrique (écart par rapport à la couleur cible)
+          const diff = Math.abs(r - targetR) + Math.abs(g - targetG) + Math.abs(b - targetB);
+
+          if (diff <= tolerance * 3) {
+            // Si on est dans la tolérance, on rend transparent
+            data[i+3] = 0; 
+          }
+        }
+        ctx.putImageData(imgData, 0, 0);
+      }
+
+      // --- 6. EXPORT ET AFFICHAGE ---
+      const outMime = outFormatEl.value;
+      let blob = (outMime === 'image/bmp') ? canvasToBMPBlob(canvas) : await new Promise(r => canvas.toBlob(r, outMime, parseFloat(qualityEl.value)));
+
+      const name = file.name.replace(/\.[^/.]+$/, "") + '_conv' + mimeToExt(outMime);
+      convertedFiles.push({ name, blob });
+
+      const url = URL.createObjectURL(blob);
+      const tile = document.createElement('div');
+      tile.className = 'tile';
+      tile.innerHTML = `<div class="preview-container"><img src="${url}" class="preview"></div><div class="meta">${name}<br>${Math.round(blob.size/1024)} KB</div>
+                        <a href="${url}" download="${name}" class="btn btn-main" style="display:block;text-decoration:none;font-size:11px">Télécharger</a>`;
+      outEl.appendChild(tile);
     }
-    ctx.putImageData(imgData, 0, 0);
-  }
-
-  // --- 5. EXPORT ET AFFICHAGE ---
-  const outMime = outFormatEl.value;
-  let blob = (outMime === 'image/bmp') ? canvasToBMPBlob(canvas) : await new Promise(r => canvas.toBlob(r, outMime, parseFloat(qualityEl.value)));
-
-  const name = file.name.replace(/\.[^/.]+$/, "") + '_conv' + mimeToExt(outMime);
-  convertedFiles.push({ name, blob });
-
-  const url = URL.createObjectURL(blob);
-  const tile = document.createElement('div');
-  tile.className = 'tile';
-  tile.innerHTML = `<img src="${url}" class="preview"><div class="meta">${name}<br>${Math.round(blob.size/1024)} KB</div>
-                    <a href="${url}" download="${name}" class="btn btn-main" style="display:block;text-decoration:none;font-size:11px">Télécharger</a>`;
-  outEl.appendChild(tile);
-}
 
     function mimeToExt(m){ return { 'image/jpeg':'.jpg','image/png':'.png','image/webp':'.webp','image/avif':'.avif','image/bmp':'.bmp' }[m]; }
 
-    zipBtn.onclick=async()=>{
+    zipBtn.onclick = async () => {
       if(!convertedFiles.length) return alert('Rien à zipper !');
-      const zip=new JSZip();
-      convertedFiles.forEach(f=>zip.file(f.name,f.blob));
-      const b=await zip.generateAsync({type:'blob'});
-      const a=document.createElement('a'); a.href=URL.createObjectURL(b); a.download='images.zip'; a.click();
+      const zip = new JSZip();
+      convertedFiles.forEach(f => zip.file(f.name, f.blob));
+      const b = await zip.generateAsync({type:'blob'});
+      const a = document.createElement('a'); a.href = URL.createObjectURL(b); a.download = 'images.zip'; a.click();
     };
 
-    // Encodeur BMP
     function canvasToBMPBlob(canvas){
-      const w=canvas.width,h=canvas.height,ctx=canvas.getContext('2d'),imgd=ctx.getImageData(0,0,w,h),pixels=imgd.data;
-      const rowSize=Math.floor((24*w+31)/32)*4,pixelDataSize=rowSize*h,headerSize=54,fileSize=headerSize+pixelDataSize;
-      const buffer=new ArrayBuffer(fileSize),view=new DataView(buffer);
-      let offset=0;
-      view.setUint8(offset,0x42);offset++;view.setUint8(offset,0x4D);offset++;
-      view.setUint32(offset,fileSize,true);offset+=4;view.setUint32(offset,0,true);offset+=4;
-      view.setUint32(offset,headerSize,true);offset+=4;view.setUint32(offset,40,true);offset+=4;
-      view.setInt32(offset,w,true);offset+=4;view.setInt32(offset,h,true);offset+=4;
-      view.setUint16(offset,1,true);offset+=2;view.setUint16(offset,24,true);offset+=2;
-      view.setUint32(offset,0,true);offset+=4;view.setUint32(offset,pixelDataSize,true);offset+=4;
-      view.setInt32(offset,2835,true);offset+=4;view.setInt32(offset,2835,true);offset+=4;
-      let p=headerSize;const rowPad=rowSize-w*3;
-      for(let y=h-1;y>=0;y--){
-        for(let x=0;x<w;x++){
-          const i=(y*w+x)*4;view.setUint8(p++,pixels[i+2]);view.setUint8(p++,pixels[i+1]);view.setUint8(p++,pixels[i]);
+      const w = canvas.width, h = canvas.height, ctx = canvas.getContext('2d'), imgd = ctx.getImageData(0,0,w,h), pixels = imgd.data;
+      const rowSize = Math.floor((24*w+31)/32)*4, pixelDataSize = rowSize*h, headerSize = 54, fileSize = headerSize+pixelDataSize;
+      const buffer = new ArrayBuffer(fileSize), view = new DataView(buffer);
+      let offset = 0;
+      view.setUint8(offset,0x42); offset++; view.setUint8(offset,0x4D); offset++;
+      view.setUint32(offset,fileSize,true); offset+=4; view.setUint32(offset,0,true); offset+=4;
+      view.setUint32(offset,headerSize,true); offset+=4; view.setUint32(offset,40,true); offset+=4;
+      view.setInt32(offset,w,true); offset+=4; view.setInt32(offset,h,true); offset+=4;
+      view.setUint16(offset,1,true); offset+=2; view.setUint16(offset,24,true); offset+=2;
+      view.setUint32(offset,0,true); offset+=4; view.setUint32(offset,pixelDataSize,true); offset+=4;
+      view.setInt32(offset,2835,true); offset+=4; view.setInt32(offset,2835,true); offset+=4;
+      let p = headerSize; const rowPad = rowSize - w*3;
+      for(let y = h-1; y >= 0; y--){
+        for(let x = 0; x < w; x++){
+          const i = (y*w+x)*4; view.setUint8(p++, pixels[i+2]); view.setUint8(p++, pixels[i+1]); view.setUint8(p++, pixels[i]);
         }
-        for(let k=0;k<rowPad;k++)view.setUint8(p++,0);
+        for(let k = 0; k < rowPad; k++) view.setUint8(p++, 0);
       }
-      return new Blob([buffer],{type:'image/bmp'});
+      return new Blob([buffer], {type:'image/bmp'});
     }
   </script>
 </body>
